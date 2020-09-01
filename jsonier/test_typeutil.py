@@ -1,6 +1,6 @@
 import unittest
 
-from citadel.util.typeutil import *
+from jsonier.util.typeutil import *
 
 
 class TypespecTestCase(unittest.TestCase):

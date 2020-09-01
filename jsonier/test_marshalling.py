@@ -5,11 +5,11 @@ from datetime import (
     timedelta
 )
 
-from citadel.marshalling import (
+from jsonier.marshalling import (
     jsonclass,
     Field,
 )
-from citadel.util.typeutil import (
+from jsonier.util.typeutil import (
     ListOf,
     MapOf,
     Timestamp,
