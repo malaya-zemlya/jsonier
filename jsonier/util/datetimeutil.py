@@ -21,8 +21,7 @@ def float_to_datetime(t: float) -> datetime:
 
 
 def datetime_to_str(dt: datetime) -> str:
-    s = dt.isoformat()
-    return s + 'Z'
+    return dt.isoformat() + 'Z'
 
 
 def str_to_datetime(t: str) -> datetime:
