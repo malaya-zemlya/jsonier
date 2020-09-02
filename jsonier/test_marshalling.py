@@ -57,10 +57,13 @@ class Dates:
     valid_since = Field(Timestamp[float])
     valid_until = Field(Timestamp, omit_empty=False)
 
+
 @jsonified
-class Intialized:
-    first = Field(str, omit_empty=False)
-    last = Field(str, omit_empty=False)
+class Person2:
+    first = Field(str, omit_empty=False, name='first-name')
+    last = Field(str, omit_empty=False, name='surname')
+    age = Field(int)
+    address = Field(Address)
 
 
 class MarshallingTestCase(unittest.TestCase):
@@ -134,11 +137,30 @@ class MarshallingTestCase(unittest.TestCase):
         self.assertEqual(bd.valid_since, datetime(2002, 12, 25, 6, 39))
         self.assertIsNone(bd.valid_until)
 
-    def test_derivation(self):
-        obj = Intialized(last='Smith')
-        self.assertEqual(obj.first, '')
-        self.assertEqual(obj.last, 'Smith')
+    def test_creation(self):
+        obj = Person2(first='Adam',
+                      last='Smith',
+                      age='100',
+                      address=Address(
+                             street='600 Heavenward Ave',
+                             city='New Bork City',
+                             state='NB'
+                         ))
+        j = obj.to_json()
+        self.assertEqual(j['first-name'], 'Adam')
+        self.assertEqual(j['surname'], 'Smith')
+        self.assertEqual(j['age'], 100)
+        self.assertEqual(j['address']['street'], '600 Heavenward Ave')
+        self.assertEqual(j['address']['city'], 'New Bork City')
+        self.assertEqual(j['address']['state'], 'NB')
 
+    def test_creation_wrong_arg(self):
+        with self.assertRaises(ValueError) as context:
+            address = Address(
+                street='600 Heavenward Ave',
+                city='New Bork City',
+                province='NB'  # should be 'state'
+            )
 
 if __name__ == '__main__':
     unittest.main()
