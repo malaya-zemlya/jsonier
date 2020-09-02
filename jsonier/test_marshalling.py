@@ -5,15 +5,7 @@ from datetime import (
     timedelta
 )
 
-from jsonier.marshalling import (
-    jsonclass,
-    Field,
-)
-from jsonier.util.typeutil import (
-    ListOf,
-    MapOf,
-    Timestamp,
-)
+from jsonier import *
 
 
 @jsonclass
@@ -136,6 +128,7 @@ class MarshallingTestCase(unittest.TestCase):
         self.assertEqual(bd.finished, datetime(1970, 1, 13, 1, 6, 38))
         self.assertEqual(bd.valid_since, datetime(2002, 12, 25, 6, 39))
         self.assertIsNone(bd.valid_until)
+
 
 
 if __name__ == '__main__':
