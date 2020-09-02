@@ -16,7 +16,7 @@ from jsonier.util.datetimeutil import (
     int_to_datetime,
     float_to_datetime,
     str_to_datetime,
-    auto_to_datetime,
+    auto_to_datetime
 )
 from jsonier.util.typeutil import (
     JsonType,
