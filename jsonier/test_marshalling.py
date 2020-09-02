@@ -8,13 +8,13 @@ from datetime import (
 from jsonier import *
 
 
-@jsonclass
+@jsonified
 class Present:
     name = Field(str, required=True)
     price = Field(float, required=True)
 
 
-@jsonclass
+@jsonified
 class Address:
     street = Field(str, omit_empty=False)
     street2 = Field(str)
@@ -22,19 +22,19 @@ class Address:
     state = Field(str, required=True)
 
 
-@jsonclass
+@jsonified
 class Position:
     name = Field(str, omit_empty=False)
     level = Field(int)
 
 
-@jsonclass
+@jsonified
 class Contact:
     kind = Field(str, required=True)
     data = Field(str, required=True)
 
 
-@jsonclass
+@jsonified
 class Person:
     name = Field(str, required=True, omit_empty=False)
     last_name = Field(str, required=True, name='last-name', omit_empty=False)
@@ -48,7 +48,7 @@ class Person:
     contacts = Field(MapOf[Contact])
 
 
-@jsonclass
+@jsonified
 class Dates:
     date = Field(Timestamp, default='2020-03-12T00:00:00', name='date')
     birthday = Field(Timestamp, default=0)
@@ -56,6 +56,11 @@ class Dates:
     finished = Field(Timestamp[int])
     valid_since = Field(Timestamp[float])
     valid_until = Field(Timestamp, omit_empty=False)
+
+@jsonified
+class Intialized:
+    first = Field(str, omit_empty=False)
+    last = Field(str, omit_empty=False)
 
 
 class MarshallingTestCase(unittest.TestCase):
@@ -129,6 +134,10 @@ class MarshallingTestCase(unittest.TestCase):
         self.assertEqual(bd.valid_since, datetime(2002, 12, 25, 6, 39))
         self.assertIsNone(bd.valid_until)
 
+    def test_derivation(self):
+        obj = Intialized(last='Smith')
+        self.assertEqual(obj.first, '')
+        self.assertEqual(obj.last, 'Smith')
 
 
 if __name__ == '__main__':

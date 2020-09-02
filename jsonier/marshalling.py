@@ -24,16 +24,16 @@ from jsonier.util.typeutil import (
     type_name,
 )
 
-_FIELDS = '__FLD'
+_FIELDS = '__JSON'
 _MISSING = (None,)  # a special value indicating that a value is not specified (but is not None)
 
 
-def require_jsonclass(cls):
+def require_jsonified(cls):
     if not hasattr(cls, _FIELDS):
         raise TypeError(f'{cls.__name__} is not a jsonclass object.')
 
 
-def is_jsonclass(cls):
+def is_jsonified(cls):
     return hasattr(cls, _FIELDS)
 
 
@@ -225,7 +225,7 @@ class MapOfAdapter(Adapter):
 class ObjAdapter(Adapter):
     def __init__(self, child: type):
         super().__init__()
-        require_jsonclass(child)
+        require_jsonified(child)
         self._child = child
 
     def from_json(self, json_data: Optional[dict]):
@@ -283,7 +283,7 @@ class TypeSpecParser:
         self._type_handlers[ts] = handler
 
     def parse_type_spec(self, ts):
-        if is_jsonclass(ts):  # a jsonified sub-class
+        if is_jsonified(ts):  # a jsonified sub-class
             return ObjAdapter(ts)
         if isinstance(ts, TypeSpec):  # a type-spec class with optional argumants
             head, args = ts.head(), ts.tail()
@@ -343,11 +343,15 @@ class FieldHandler:
             return
         json_data[self._name] = self._adapter.to_json(attr_value)
 
+    def zero(self):
+        return self._adapter.zero()
+
 
 class Jsonier:
     """
     Wrapper class that generates all necessary plumbing around JSON conversion.
     """
+
     def __init__(self):
         self._parser = TypeSpecParser()
 
@@ -366,6 +370,11 @@ class Jsonier:
         # We're called as @dataclass without parens.
         return self._process_class(cls)
 
+    @staticmethod
+    def _set_default(cls, attr_name, attr_value):
+        if not hasattr(cls, attr_name):
+            setattr(cls, attr_name, attr_value)
+
     def _process_class(self, cls):
         fields = {}
         for attr_name, attr_value in cls.__dict__.items():
@@ -376,12 +385,19 @@ class Jsonier:
                 continue
             fields[attr_name] = self._create_handler(attr_value, attr_name)
 
-        setattr(cls, _FIELDS, fields)
-        setattr(cls, 'from_json', MethodType(from_json, cls))
-        setattr(cls, 'from_json_str', MethodType(from_json_str, cls))
-        setattr(cls, 'to_json', to_json)
-        setattr(cls, 'to_json_str', to_json_str)
-        setattr(cls, '__str__', to_json_str)
+        if hasattr(cls, _FIELDS):
+            f = dict(getattr(cls, _FIELDS))
+            f.update(fields)
+            setattr(cls, _FIELDS, f)
+        else:
+            setattr(cls, _FIELDS, fields)
+
+        Jsonier._set_default(cls, 'from_json', MethodType(from_json, cls))
+        Jsonier._set_default(cls, 'from_json_str', MethodType(from_json_str, cls))
+        Jsonier._set_default(cls, 'to_json', to_json)
+        Jsonier._set_default(cls, 'to_json_str', to_json_str)
+        Jsonier._set_default(cls, '__str__', to_json_str)
+        setattr(cls, '__init__', _init_obj)
         return cls
 
     def _create_handler(self, field: Field, attr_name: str):
@@ -396,11 +412,11 @@ class Jsonier:
         )
 
 
-jsonclass = Jsonier()
+jsonified = Jsonier()
 
 
 def from_json(cls, json_data: dict):
-    require_jsonclass(cls)
+    require_jsonified(cls)
     fields: dict = getattr(cls, _FIELDS)
     inst = cls()
     for attr_name, field in fields.items():
@@ -413,9 +429,20 @@ def from_json_str(cls, json_str: str):
     return from_json(cls, json_data=json.loads(json_str))
 
 
+def _init_obj(obj, **kwargs):
+    fields: dict = getattr(obj.__class__, _FIELDS)
+    for attr_name, attr_value in fields.items():
+        if attr_name in kwargs:
+            setattr(obj, attr_name, kwargs[attr_name])
+        else:
+            setattr(obj, attr_name, attr_value.zero())
+    for k in kwargs.keys():
+        if k not in fields:
+            raise ValueError(f'No matching JSON Field for the initializer `{k}`')
+
 def to_json(obj):
     cls = obj.__class__
-    require_jsonclass(cls)
+    require_jsonified(cls)
     converters: dict = getattr(cls, _FIELDS)
     json_data = {}
     for attr_name, field in converters.items():
