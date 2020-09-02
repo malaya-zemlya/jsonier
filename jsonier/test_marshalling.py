@@ -142,10 +142,10 @@ class MarshallingTestCase(unittest.TestCase):
                       last='Smith',
                       age='100',
                       address=Address(
-                             street='600 Heavenward Ave',
-                             city='New Bork City',
-                             state='NB'
-                         ))
+                          street='600 Heavenward Ave',
+                          city='New Bork City',
+                          state='NB'
+                      ))
         j = obj.to_json()
         self.assertEqual(j['first-name'], 'Adam')
         self.assertEqual(j['surname'], 'Smith')

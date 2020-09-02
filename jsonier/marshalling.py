@@ -16,7 +16,7 @@ from jsonier.util.datetimeutil import (
     int_to_datetime,
     float_to_datetime,
     str_to_datetime,
-    auto_to_datetime,
+    auto_to_datetime
 )
 from jsonier.util.typeutil import (
     JsonType,
@@ -392,11 +392,11 @@ class Jsonier:
         else:
             setattr(cls, _FIELDS, fields)
 
-        Jsonier._set_default(cls, 'from_json', MethodType(from_json, cls))
-        Jsonier._set_default(cls, 'from_json_str', MethodType(from_json_str, cls))
-        Jsonier._set_default(cls, 'to_json', to_json)
-        Jsonier._set_default(cls, 'to_json_str', to_json_str)
-        Jsonier._set_default(cls, '__str__', to_json_str)
+        _maybe_setattr(cls, 'from_json', MethodType(from_json, cls))
+        _maybe_setattr(cls, 'from_json_str', MethodType(from_json_str, cls))
+        _maybe_setattr(cls, 'to_json', to_json)
+        _maybe_setattr(cls, 'to_json_str', to_json_str)
+        _maybe_setattr(cls, '__str__', to_json_str)
         setattr(cls, '__init__', _init_obj)
         return cls
 
@@ -429,6 +429,11 @@ def from_json_str(cls, json_str: str):
     return from_json(cls, json_data=json.loads(json_str))
 
 
+def _maybe_setattr(cls, attr_name, attr_value):
+    if not hasattr(cls, attr_name):
+        setattr(cls, attr_name, attr_value)
+
+
 def _init_obj(obj, **kwargs):
     fields: dict = getattr(obj.__class__, _FIELDS)
     for attr_name, attr_value in fields.items():
@@ -439,6 +444,7 @@ def _init_obj(obj, **kwargs):
     for k in kwargs.keys():
         if k not in fields:
             raise ValueError(f'No matching JSON Field for the initializer `{k}`')
+
 
 def to_json(obj):
     cls = obj.__class__
