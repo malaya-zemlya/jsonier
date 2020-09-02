@@ -40,7 +40,15 @@ def type_check(x, types):
 
 
 class TypeSpec:
-    def __init__(self, head: type, *args):
+    Int = 'int'
+    Float = 'float'
+    Bool = 'bool'
+    Str = 'str'
+    ListOf = 'list'
+    MapOf = 'map'
+    Timestamp = 'timestamp'
+
+    def __init__(self, head: str, *args):
         self._head = head
         self._args = tuple(args)
 
@@ -53,16 +61,7 @@ class TypeSpec:
     def __getitem__(self, item):
         return TypeSpec(self._head, item)
 
-    def __eq__(self, other):
-        if other is self:
-            return True
-        if isinstance(other, TypeSpec):
-            return self._head == other._head and self._args == other._args
-        if isinstance(other, type):
-            return self._head == other and len(self._args) == 0
-        return False
 
-
-ListOf = TypeSpec('ListOf')
-MapOf = TypeSpec('MapOf')
-Timestamp = TypeSpec('Timestamp')
+ListOf = TypeSpec(TypeSpec.ListOf)
+MapOf = TypeSpec(TypeSpec.MapOf)
+Timestamp = TypeSpec(TypeSpec.Timestamp)

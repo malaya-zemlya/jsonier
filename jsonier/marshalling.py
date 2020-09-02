@@ -4,6 +4,7 @@ from datetime import datetime
 from types import MethodType
 from typing import (
     Any,
+    Callable,
     Optional,
     Union
 )
@@ -20,7 +21,6 @@ from jsonier.util.datetimeutil import (
 from jsonier.util.typeutil import (
     JsonType,
     TypeSpec,
-    type_check,
     type_name,
 )
 
@@ -37,13 +37,14 @@ def is_jsonclass(cls):
     return hasattr(cls, _FIELDS)
 
 
-class Value:
-    def __init__(self, strict: bool = False, default: Any = None):
-        """
-        :param strict: True to perform type-check during data conversion
-        :param default: Value to return for a missing optional field
-        """
-        self.strict = strict
+class Adapter:
+    def __init__(self, *args, **kwargs):
+        self.default = None
+
+    def set_options(self, options: Optional[dict] = None):
+        pass
+
+    def set_default(self, default):
         self.default = default
 
     def from_json(self, json_data):
@@ -59,84 +60,77 @@ class Value:
         return not obj
 
 
-class IntValue(Value):
-    def __init__(self, strict: bool = False, default: Optional[int] = None):
-        if default is None:
-            default = 0
-        super().__init__(strict=strict, default=default)
-
+class IntAdapter(Adapter):
     def from_json(self, json_data) -> int:
-        if self.strict:
-            type_check(json_data, int)
         return int(json_data)
 
     def to_json(self, json_data) -> int:
-        if self.strict:
-            type_check(json_data, int)
         return int(json_data)
 
-
-class FloatValue(Value):
-    def __init__(self, strict: bool = False, default: Optional[float] = None):
+    def set_default(self, default):
         if default is None:
-            default = 0.0
-        super().__init__(strict=strict, default=default)
+            self.default = 0
+        else:
+            self.default = int(default)
 
+
+class FloatAdapter(Adapter):
     def from_json(self, json_data) -> float:
-        if self.strict:
-            type_check(json_data, float)
         return float(json_data)
 
     def to_json(self, json_data) -> float:
-        if self.strict:
-            type_check(json_data, float)
         return float(json_data)
 
-
-class StringValue(Value):
-    def __init__(self, strict: bool = False, default: Optional[str] = None):
+    def set_default(self, default):
         if default is None:
-            default = ''
-        super().__init__(strict=strict, default=default)
+            self.default = 0.0
+        else:
+            self.default = float(default)
 
+
+class StringAdapter(Adapter):
     def from_json(self, json_data) -> str:
-        if self.strict:
-            type_check(json_data, str)
         return str(json_data)
 
     def to_json(self, json_data) -> str:
-        if self.strict:
-            type_check(json_data, str)
         return str(json_data)
 
-
-class BoolValue(Value):
-    def __init__(self, strict: bool = False, default: Optional[bool] = None):
+    def set_default(self, default):
         if default is None:
-            default = False
-        super().__init__(strict=strict, default=default)
+            self.default = ''
+        else:
+            self.default = str(default)
 
+
+class BoolAdapter(Adapter):
     def from_json(self, json_data) -> bool:
-        if self.strict:
-            type_check(json_data, bool)
         return bool(json_data)
 
     def to_json(self, json_data) -> bool:
-        if self.strict:
-            type_check(json_data, bool)
         return bool(json_data)
 
+    def set_default(self, default):
+        if default is None:
+            self.default = False
+        else:
+            self.default = bool(default)
 
-EPOCH = datetime.utcfromtimestamp(0)
+
+class TimestampBaseAdapter(Adapter):
+    def set_default(self, default):
+        if default is None:
+            self.default = None
+        else:
+            self.default = auto_to_datetime(default)
+
+    def from_json(self, json_data):
+        raise NotImplementedError('from_json')
+
+    def to_json(self, json_data) -> Optional[str]:
+        raise NotImplementedError('to_json')
 
 
-class TimestampStrValue(Value):
-    def __init__(self,
-                 default: Any = None):
-        if default is not None:
-            default = auto_to_datetime(default)
-        super().__init__(strict=True, default=default)
-
+class TimestampStrAdapter(TimestampBaseAdapter):
     def from_json(self, json_data) -> Optional[datetime]:
         if json_data is None:
             return None
@@ -148,13 +142,7 @@ class TimestampStrValue(Value):
         return datetime_to_str(json_data)
 
 
-class TimestampFloatValue(Value):
-    def __init__(self,
-                 default: Optional[datetime] = None):
-        if default is not None:
-            default = auto_to_datetime(default)
-        super().__init__(strict=True, default=default)
-
+class TimestampFloatAdapter(TimestampBaseAdapter):
     def from_json(self, json_data) -> Optional[datetime]:
         if json_data is None:
             return None
@@ -166,13 +154,7 @@ class TimestampFloatValue(Value):
         return datetime_to_float(obj_data)
 
 
-class TimestampIntValue(Value):
-    def __init__(self,
-                 default: Optional[datetime] = None):
-        if default is not None:
-            default = auto_to_datetime(default)
-        super().__init__(strict=True, default=default)
-
+class TimestampIntAdapter(TimestampBaseAdapter):
     def from_json(self, json_data) -> Optional[datetime]:
         if json_data is None:
             return None
@@ -184,13 +166,7 @@ class TimestampIntValue(Value):
         return datetime_to_int(obj_data)
 
 
-class TimestampAutoValue(Value):
-    def __init__(self,
-                 default: Optional[datetime] = None):
-        if default is not None:
-            default = auto_to_datetime(default)
-        super().__init__(strict=True, default=default)
-
+class TimestampAutoAdapter(TimestampBaseAdapter):
     def from_json(self, json_data) -> Optional[datetime]:
         if json_data is None:
             return None
@@ -202,142 +178,225 @@ class TimestampAutoValue(Value):
         return datetime_to_str(obj_data)
 
 
-class ListOfValue(Value):
-    def __init__(self, sub_value: Value):
-        self._sub_value = sub_value
-        super().__init__(strict=True)
+class ListOfAdapter(Adapter):
+    def __init__(self, child: Adapter):
+        super().__init__()
+        self._child = child
 
     def from_json(self, json_data: list):
         if not isinstance(json_data, list):
             raise TypeError(f'Expecting a list, got {type(json_data)} instead')
-        return [self._sub_value.from_json(item) for item in json_data]
+        return [self._child.from_json(item) for item in json_data]
 
     def to_json(self, obj: list):
         if not isinstance(obj, list):
             raise TypeError(f'Expecting a list, got {type_name(obj)} instead')
-        return [self._sub_value.to_json(item) for item in obj]
+        return [self._child.to_json(item) for item in obj]
 
-    def zero(self):
-        return []
+    def set_default(self, default):
+        if default is None:
+            self.default = None
+        else:
+            self.default = list(default)
 
 
-class MapOfValue(Value):
-    def __init__(self, sub_value: Value):
-        self._sub_value = sub_value
-        super().__init__(strict=True)
+class MapOfAdapter(Adapter):
+    def __init__(self, child: Adapter):
+        super().__init__()
+        self._child = child
 
     def from_json(self, json_data: dict):
         if not isinstance(json_data, dict):
             raise TypeError(f'Expecting a dict, got {type(json_data)} instead')
-        return {k: self._sub_value.from_json(v) for k, v in json_data.items()}
+        return {k: self._child.from_json(v) for k, v in json_data.items()}
 
     def to_json(self, obj: dict):
         if not isinstance(obj, dict):
             raise TypeError(f'Expecting a dict, got {type_name(obj)} instead')
-        return {k: self._sub_value.to_json(v) for k, v in obj.items()}
+        return {k: self._child.to_json(v) for k, v in obj.items()}
 
-    def zero(self):
-        return {}
+    def set_default(self, default):
+        if default is None:
+            self.default = None
+        else:
+            self.default = dict(default)
 
 
-class ObjValue(Value):
-    def __init__(self, sub_value: type):
-        require_jsonclass(sub_value)
-        self._sub_value = sub_value
-        super().__init__(strict=True, default=None)
+class ObjAdapter(Adapter):
+    def __init__(self, child: type):
+        super().__init__()
+        require_jsonclass(child)
+        self._child = child
 
     def from_json(self, json_data: Optional[dict]):
         if json_data is None:
             return None
         if not isinstance(json_data, dict):
             raise TypeError(f'Expecting a dict, got {type_name(json_data)} instead')
-        return from_json(self._sub_value, json_data)
+        return from_json(self._child, json_data)
 
     def to_json(self, obj: Optional[dict]):
         if obj is None:
             return None
-        if not isinstance(obj, self._sub_value):
-            raise TypeError(f'Expecting a {self._sub_value.__name__}, got {type_name(obj)} instead')
+        if not isinstance(obj, self._child):
+            raise TypeError(f'Expecting a {self._child.__name__}, got {type_name(obj)} instead')
         return to_json(obj)
 
-    def zero(self):
-        return None
-
-
-def parse_type_spec(ts: Union[TypeSpec, type], default=None) -> Value:
-    if ts == int:
-        return IntValue(default=default)
-    elif ts == str:
-        return StringValue(default=default)
-    elif ts == bool:
-        return BoolValue(default=default)
-    elif ts == float:
-        return FloatValue(default=default)
-    elif ts == datetime:
-        return TimestampAutoValue(default=default)
-    elif is_jsonclass(ts):
-        return ObjValue(ts)
-    elif not isinstance(ts, TypeSpec):
-        raise TypeError(f'Invalid type spec: {ts}')
-    head, args = ts.head(), ts.tail()
-    if head == 'ListOf':
-        if len(args) != 1:
-            raise TypeError('ListOf requires exactly one type argument')
-        sub_value = parse_type_spec(args[0])
-        return ListOfValue(sub_value)
-    elif head == 'MapOf':
-        if len(args) != 1:
-            raise TypeError('MapOf requires exactly one type argument')
-        sub_value = parse_type_spec(args[0])
-        return MapOfValue(sub_value)
-    elif head == 'Timestamp':
-        if len(args) == 0:
-            return TimestampAutoValue(default=default)
-        if len(args) != 1:
-            raise TypeError('Timestamp requires exactly one type argument')
-        arg = args[0]
-        if arg == int:
-            return TimestampIntValue(default=default)
-        elif arg == str:
-            return TimestampStrValue(default=default)
-        elif arg == float:
-            return TimestampFloatValue(default=default)
+    def set_default(self, default):
+        if default is None:
+            self.default = None
         else:
-            raise TypeError('The argument to timestamp has to be str, int, or float.')
-    else:
-        raise TypeError('Invalid Typespec')
+            self.default = self._child(default)
 
 
-def _process_class(cls, frozen):
-    fields = {}
-    for attr_name, attr_value in cls.__dict__.items():
-        if not isinstance(attr_value, Field):
-            if not attr_name.startswith('_') and not callable(attr_value):
-                # warning
-                logging.warning(f'JSON class {cls.__name__} has an attribute `{attr_name}` that is not a field')
-            continue
-        fields[attr_name] = attr_value
-    setattr(cls, _FIELDS, fields)
-    setattr(cls, 'from_json', MethodType(from_json, cls))
-    setattr(cls, 'from_json_str', MethodType(from_json_str, cls))
-    setattr(cls, 'to_json', to_json)
-    setattr(cls, 'to_json_str', to_json_str)
-    setattr(cls, '__str__', to_json_str)
-
-    return cls
+def _type_handler_list(args, parser):
+    if len(args) != 1:
+        raise TypeError('ListOf requires exactly one type argument')
+    sub_value = parser.parse_type_spec(args[0])
+    return ListOfAdapter(sub_value)
 
 
-def jsonclass(cls=None, /, *, frozen=False):
-    def wrap(cls):
-        return _process_class(cls, frozen)
+def _type_handler_map(args, parser):
+    if len(args) != 1:
+        raise TypeError('MapOf requires exactly one type argument')
+    sub_value = parser.parse_type_spec(args[0])
+    return MapOfAdapter(sub_value)
 
-    # See if we're being called as @dataclass or @dataclass().
-    if cls is None:
-        # We're called with parens.
-        return wrap
 
-    # We're called as @dataclass without parens.
-    return wrap(cls)
+class TypeSpecParser:
+    def __init__(self):
+        self._type_handlers = {
+            str: StringAdapter,
+            int: IntAdapter,
+            bool: BoolAdapter,
+            float: FloatAdapter,
+            datetime: TimestampAutoAdapter,
+            TypeSpec.MapOf: _type_handler_map,
+            TypeSpec.ListOf: _type_handler_list,
+            (TypeSpec.Timestamp, tuple()): TimestampAutoAdapter,
+            (TypeSpec.Timestamp, (int,)): TimestampIntAdapter,
+            (TypeSpec.Timestamp, (str,)): TimestampStrAdapter,
+            (TypeSpec.Timestamp, (float,)): TimestampFloatAdapter,
+        }
+
+    def register(self, ts: Union[type, str], handler: Callable):
+        self._type_handlers[ts] = handler
+
+    def parse_type_spec(self, ts):
+        if is_jsonclass(ts):  # a jsonified sub-class
+            return ObjAdapter(ts)
+        if isinstance(ts, TypeSpec):  # a type-spec class with optional argumants
+            head, args = ts.head(), ts.tail()
+        elif isinstance(ts, type):  # simple type (no arguments)
+            head, args = ts, tuple()
+        else:
+            raise TypeError(f'Invalid type: {ts}')
+
+        try:
+            type_handler = self._type_handlers[head]
+        except KeyError:
+            try:
+                type_handler = self._type_handlers[(head, args)]
+            except KeyError:
+                raise TypeError(f'Don\'t know how to handle type: {head}')
+        return type_handler(args, parser=self)
+
+
+class Field:
+    def __init__(self,
+                 type_spec: Union[TypeSpec, type],
+                 required: bool = False,
+                 omit_empty: bool = True,
+                 default: Any = None,
+                 name: str = '',
+                 **kwargs):
+        self.type_spec = type_spec
+        self.required = required
+        self.omit_empty = omit_empty
+        self.default = default
+        self.name = name
+        self.options = kwargs
+
+
+class FieldHandler:
+    def __init__(self,
+                 adapter: Adapter,
+                 required: bool = False,
+                 omit_empty: bool = True,
+                 name: str = ''):
+        self._adapter = adapter
+        self._omit_empty = omit_empty
+        self._required = required
+        self._name = name
+
+    def read(self, json_data: dict):
+        try:
+            json_value = json_data[self._name]
+        except KeyError:
+            if self._required:
+                raise ValueError(f'Required field {self._name} is missing.')
+            return self._adapter.zero()
+        return self._adapter.from_json(json_value)
+
+    def write(self, json_data: dict, attr_value: Any):
+        if self._adapter.is_empty(attr_value) and self._omit_empty:
+            return
+        json_data[self._name] = self._adapter.to_json(attr_value)
+
+
+class Jsonier:
+    """
+    Wrapper class that generates all necessary plumbing around JSON conversion.
+    """
+    def __init__(self):
+        self._parser = TypeSpecParser()
+
+    def type_parser(self):
+        return self._parser
+
+    def __call__(self, cls, /, *args, **kwargs):
+        def wrap(cls):
+            return self._process_class(cls)
+
+        # See if we're being called as @dataclass or @dataclass().
+        if cls is None:
+            # We're called with parens.
+            return wrap
+
+        # We're called as @dataclass without parens.
+        return self._process_class(cls)
+
+    def _process_class(self, cls):
+        fields = {}
+        for attr_name, attr_value in cls.__dict__.items():
+            if not isinstance(attr_value, Field):
+                if not attr_name.startswith('_') and not callable(attr_value):
+                    # warning
+                    logging.warning(f'JSON class {cls.__name__} has an attribute `{attr_name}` that is not a field')
+                continue
+            fields[attr_name] = self._create_handler(attr_value, attr_name)
+
+        setattr(cls, _FIELDS, fields)
+        setattr(cls, 'from_json', MethodType(from_json, cls))
+        setattr(cls, 'from_json_str', MethodType(from_json_str, cls))
+        setattr(cls, 'to_json', to_json)
+        setattr(cls, 'to_json_str', to_json_str)
+        setattr(cls, '__str__', to_json_str)
+        return cls
+
+    def _create_handler(self, field: Field, attr_name: str):
+        adapter = self._parser.parse_type_spec(field.type_spec)
+        adapter.set_default(field.default)
+        adapter.set_options(field.options)
+        return FieldHandler(
+            adapter=adapter,
+            required=field.required,
+            omit_empty=field.omit_empty,
+            name=field.name or attr_name,
+        )
+
+
+jsonclass = Jsonier()
 
 
 def from_json(cls, json_data: dict):
@@ -345,7 +404,7 @@ def from_json(cls, json_data: dict):
     fields: dict = getattr(cls, _FIELDS)
     inst = cls()
     for attr_name, field in fields.items():
-        v = field.get_value(json_data=json_data, attr_name=attr_name)
+        v = field.read(json_data=json_data)
         setattr(inst, attr_name, v)
     return inst
 
@@ -360,41 +419,10 @@ def to_json(obj):
     converters: dict = getattr(cls, _FIELDS)
     json_data = {}
     for attr_name, field in converters.items():
-        field.set_value(json_data=json_data, attr_name=attr_name, attr_value=getattr(obj, attr_name))
+        field.write(json_data=json_data, attr_value=getattr(obj, attr_name))
     return json_data
 
 
 def to_json_str(obj, **kwargs):
     data = to_json(obj)
     return json.dumps(data, **kwargs)
-
-
-class Field:
-    def __init__(self,
-                 type_spec: Union[TypeSpec, type],
-                 required: bool = False,
-                 omit_empty: bool = True,
-                 default: Any = None,
-                 name: str = ''):
-        self.type_spec = type_spec
-        self.value = parse_type_spec(type_spec, default=default)
-        self.required = required
-        self.omit_empty = omit_empty
-        self.default = default
-        self.name = name
-
-    def get_value(self, json_data: dict, attr_name: str):
-        json_name = self.name or attr_name
-        try:
-            json_value = json_data[json_name]
-        except KeyError:
-            if self.required:
-                raise ValueError(f'Required field {json_name} is missing.')
-            return self.value.zero()
-        return self.value.from_json(json_value)
-
-    def set_value(self, json_data: dict, attr_name: str, attr_value: Any):
-        if self.value.is_empty(attr_value) and self.omit_empty:
-            return
-        json_name = self.name or attr_name
-        json_data[json_name] = self.value.to_json(attr_value)
