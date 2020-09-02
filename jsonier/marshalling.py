@@ -440,6 +440,7 @@ def _init_obj(obj, **kwargs):
         if k not in fields:
             raise ValueError(f'No matching JSON Field for the initializer `{k}`')
 
+
 def to_json(obj):
     cls = obj.__class__
     require_jsonified(cls)
