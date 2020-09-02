@@ -1,5 +1,5 @@
 from jsonier.marshalling import (
-    jsonclass,
+    jsonified,
     Field
 )
 
