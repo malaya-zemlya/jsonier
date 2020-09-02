@@ -392,11 +392,11 @@ class Jsonier:
         else:
             setattr(cls, _FIELDS, fields)
 
-        Jsonier._set_default(cls, 'from_json', MethodType(from_json, cls))
-        Jsonier._set_default(cls, 'from_json_str', MethodType(from_json_str, cls))
-        Jsonier._set_default(cls, 'to_json', to_json)
-        Jsonier._set_default(cls, 'to_json_str', to_json_str)
-        Jsonier._set_default(cls, '__str__', to_json_str)
+        _maybe_setattr(cls, 'from_json', MethodType(from_json, cls))
+        _maybe_setattr(cls, 'from_json_str', MethodType(from_json_str, cls))
+        _maybe_setattr(cls, 'to_json', to_json)
+        _maybe_setattr(cls, 'to_json_str', to_json_str)
+        _maybe_setattr(cls, '__str__', to_json_str)
         setattr(cls, '__init__', _init_obj)
         return cls
 
@@ -427,6 +427,11 @@ def from_json(cls, json_data: dict):
 
 def from_json_str(cls, json_str: str):
     return from_json(cls, json_data=json.loads(json_str))
+
+
+def _maybe_setattr(cls, attr_name, attr_value):
+    if not hasattr(cls, attr_name):
+        setattr(cls, attr_name, attr_value)
 
 
 def _init_obj(obj, **kwargs):
