@@ -347,6 +347,23 @@ class FieldHandler:
         return self._adapter.zero()
 
 
+def _maybe_setattr(cls, attr_name, attr_value):
+    if not hasattr(cls, attr_name):
+        setattr(cls, attr_name, attr_value)
+
+
+def _init_obj(obj, **kwargs):
+    fields: dict = getattr(obj.__class__, _FIELDS)
+    for attr_name, attr_value in fields.items():
+        if attr_name in kwargs:
+            setattr(obj, attr_name, kwargs[attr_name])
+        else:
+            setattr(obj, attr_name, attr_value.zero())
+    for k in kwargs.keys():
+        if k not in fields:
+            raise ValueError(f'No matching JSON Field for the initializer `{k}`')
+
+
 class Jsonier:
     """
     Wrapper class that generates all necessary plumbing around JSON conversion.
@@ -429,24 +446,7 @@ def from_json_str(cls, json_str: str):
     return from_json(cls, json_data=json.loads(json_str))
 
 
-def _maybe_setattr(cls, attr_name, attr_value):
-    if not hasattr(cls, attr_name):
-        setattr(cls, attr_name, attr_value)
-
-
-def _init_obj(obj, **kwargs):
-    fields: dict = getattr(obj.__class__, _FIELDS)
-    for attr_name, attr_value in fields.items():
-        if attr_name in kwargs:
-            setattr(obj, attr_name, kwargs[attr_name])
-        else:
-            setattr(obj, attr_name, attr_value.zero())
-    for k in kwargs.keys():
-        if k not in fields:
-            raise ValueError(f'No matching JSON Field for the initializer `{k}`')
-
-
-def to_json(obj):
+def to_json(obj) -> dict:
     cls = obj.__class__
     require_jsonified(cls)
     converters: dict = getattr(cls, _FIELDS)
@@ -456,6 +456,6 @@ def to_json(obj):
     return json_data
 
 
-def to_json_str(obj, **kwargs):
+def to_json_str(obj, **kwargs) -> str:
     data = to_json(obj)
     return json.dumps(data, **kwargs)

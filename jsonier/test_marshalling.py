@@ -162,5 +162,6 @@ class MarshallingTestCase(unittest.TestCase):
                 province='NB'  # should be 'state'
             )
 
+
 if __name__ == '__main__':
     unittest.main()
