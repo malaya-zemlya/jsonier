@@ -6,6 +6,7 @@ from datetime import (
 )
 
 from jsonier import *
+from jsonier import ListOf, MapOf, Timestamp
 
 
 @jsonified
@@ -46,16 +47,6 @@ class Person:
     address = Field(Address)
     position = Field(Position, required=False)
     contacts = Field(MapOf[Contact])
-
-
-@jsonified
-class Dates:
-    date = Field(Timestamp, default='2020-03-12T00:00:00', name='date')
-    birthday = Field(Timestamp, default=0)
-    started = Field(Timestamp[str])
-    finished = Field(Timestamp[int])
-    valid_since = Field(Timestamp[float])
-    valid_until = Field(Timestamp, omit_empty=False)
 
 
 @jsonified
@@ -120,23 +111,6 @@ class MarshallingTestCase(unittest.TestCase):
         self.assertNotIn('is_enrolled', q)
         self.assertNotIn('position', q)
 
-    def test_timestamps(self):
-        # print ('test_timestamps')
-        data = """
-        {
-           "started": "2002-12-25T00:00:00-06:00",
-           "finished": 1040798,
-           "valid_since": 1040798340.0
-        }
-        """
-        bd = Dates.from_json_str(data)
-        self.assertEqual(bd.date, datetime(2020, 3, 12, 0, 0))
-        self.assertEqual(bd.started, datetime(2002, 12, 25, 0, 0,
-                                              tzinfo=timezone(timedelta(days=-1, seconds=64800))))
-        self.assertEqual(bd.finished, datetime(1970, 1, 13, 1, 6, 38))
-        self.assertEqual(bd.valid_since, datetime(2002, 12, 25, 6, 39))
-        self.assertIsNone(bd.valid_until)
-
     def test_creation(self):
         obj = Person2(first='Adam',
                       last='Smith',
@@ -161,6 +135,35 @@ class MarshallingTestCase(unittest.TestCase):
                 city='New Bork City',
                 province='NB'  # should be 'state'
             )
+
+
+@jsonified
+class Dates:
+    date = Field(Timestamp, default='2020-03-12T00:00:00', name='date')
+    birthday = Field(Timestamp, default=0)
+    started = Field(Timestamp[str])
+    finished = Field(Timestamp[int])
+    valid_since = Field(Timestamp[float])
+    valid_until = Field(Timestamp, omit_empty=False)
+
+
+class TestTimestamp(unittest.TestCase):
+    def test_timestamp(self):
+        # print ('test_timestamps')
+        data = """
+        {
+           "started": "2002-12-25T00:00:00-06:00",
+           "finished": 1040798,
+           "valid_since": 1040798340.0
+        }
+        """
+        bd = Dates.from_json_str(data)
+        self.assertEqual(bd.date, datetime(2020, 3, 12, 0, 0))
+        self.assertEqual(bd.started, datetime(2002, 12, 25, 0, 0,
+                                              tzinfo=timezone(timedelta(days=-1, seconds=64800))))
+        self.assertEqual(bd.finished, datetime(1970, 1, 13, 1, 6, 38))
+        self.assertEqual(bd.valid_since, datetime(2002, 12, 25, 6, 39))
+        self.assertIsNone(bd.valid_until)
 
 
 if __name__ == '__main__':

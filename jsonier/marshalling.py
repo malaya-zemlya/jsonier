@@ -1,28 +1,14 @@
 import json
 import logging
-from datetime import datetime
 from types import MethodType
 from typing import (
     Any,
     Callable,
-    Optional,
     Union
 )
 
-from jsonier.util.datetimeutil import (
-    datetime_to_int,
-    datetime_to_float,
-    datetime_to_str,
-    int_to_datetime,
-    float_to_datetime,
-    str_to_datetime,
-    auto_to_datetime
-)
-from jsonier.util.typeutil import (
-    JsonType,
-    TypeSpec,
-    type_name,
-)
+from jsonier.adapter import Adapter
+from jsonier.util.typespec import TypeSpecMap, TypeSpec
 
 _FIELDS = '__JSON'
 _MISSING = (None,)  # a special value indicating that a value is not specified (but is not None)
@@ -37,269 +23,38 @@ def is_jsonified(cls):
     return hasattr(cls, _FIELDS)
 
 
-class Adapter:
-    def __init__(self, *args, **kwargs):
-        self.default = None
-
-    def set_options(self, options: Optional[dict] = None):
-        pass
-
-    def set_default(self, default):
-        self.default = default
-
-    def from_json(self, json_data):
-        raise NotImplementedError('from_json')
-
-    def to_json(self, json_data) -> JsonType:
-        raise NotImplementedError('to_json')
-
-    def zero(self):
-        return self.default
-
-    def is_empty(self, obj):
-        return not obj
-
-
-class IntAdapter(Adapter):
-    def from_json(self, json_data) -> int:
-        return int(json_data)
-
-    def to_json(self, json_data) -> int:
-        return int(json_data)
-
-    def set_default(self, default):
-        if default is None:
-            self.default = 0
-        else:
-            self.default = int(default)
-
-
-class FloatAdapter(Adapter):
-    def from_json(self, json_data) -> float:
-        return float(json_data)
-
-    def to_json(self, json_data) -> float:
-        return float(json_data)
-
-    def set_default(self, default):
-        if default is None:
-            self.default = 0.0
-        else:
-            self.default = float(default)
-
-
-class StringAdapter(Adapter):
-    def from_json(self, json_data) -> str:
-        return str(json_data)
-
-    def to_json(self, json_data) -> str:
-        return str(json_data)
-
-    def set_default(self, default):
-        if default is None:
-            self.default = ''
-        else:
-            self.default = str(default)
-
-
-class BoolAdapter(Adapter):
-    def from_json(self, json_data) -> bool:
-        return bool(json_data)
-
-    def to_json(self, json_data) -> bool:
-        return bool(json_data)
-
-    def set_default(self, default):
-        if default is None:
-            self.default = False
-        else:
-            self.default = bool(default)
-
-
-class TimestampBaseAdapter(Adapter):
-    def set_default(self, default):
-        if default is None:
-            self.default = None
-        else:
-            self.default = auto_to_datetime(default)
-
-    def from_json(self, json_data):
-        raise NotImplementedError('from_json')
-
-    def to_json(self, json_data) -> Optional[str]:
-        raise NotImplementedError('to_json')
-
-
-class TimestampStrAdapter(TimestampBaseAdapter):
-    def from_json(self, json_data) -> Optional[datetime]:
-        if json_data is None:
-            return None
-        return str_to_datetime(json_data)
-
-    def to_json(self, json_data) -> Optional[str]:
-        if json_data is None:
-            return None
-        return datetime_to_str(json_data)
-
-
-class TimestampFloatAdapter(TimestampBaseAdapter):
-    def from_json(self, json_data) -> Optional[datetime]:
-        if json_data is None:
-            return None
-        return float_to_datetime(json_data)
-
-    def to_json(self, obj_data) -> Optional[float]:
-        if obj_data is None:
-            return None
-        return datetime_to_float(obj_data)
-
-
-class TimestampIntAdapter(TimestampBaseAdapter):
-    def from_json(self, json_data) -> Optional[datetime]:
-        if json_data is None:
-            return None
-        return int_to_datetime(json_data)
-
-    def to_json(self, obj_data) -> Optional[int]:
-        if obj_data is None:
-            return None
-        return datetime_to_int(obj_data)
-
-
-class TimestampAutoAdapter(TimestampBaseAdapter):
-    def from_json(self, json_data) -> Optional[datetime]:
-        if json_data is None:
-            return None
-        return auto_to_datetime(json_data)
-
-    def to_json(self, obj_data) -> Optional[str]:
-        if obj_data is None:
-            return None
-        return datetime_to_str(obj_data)
-
-
-class ListOfAdapter(Adapter):
-    def __init__(self, child: Adapter):
-        super().__init__()
-        self._child = child
-
-    def from_json(self, json_data: list):
-        if not isinstance(json_data, list):
-            raise TypeError(f'Expecting a list, got {type(json_data)} instead')
-        return [self._child.from_json(item) for item in json_data]
-
-    def to_json(self, obj: list):
-        if not isinstance(obj, list):
-            raise TypeError(f'Expecting a list, got {type_name(obj)} instead')
-        return [self._child.to_json(item) for item in obj]
-
-    def set_default(self, default):
-        if default is None:
-            self.default = None
-        else:
-            self.default = list(default)
-
-
-class MapOfAdapter(Adapter):
-    def __init__(self, child: Adapter):
-        super().__init__()
-        self._child = child
-
-    def from_json(self, json_data: dict):
-        if not isinstance(json_data, dict):
-            raise TypeError(f'Expecting a dict, got {type(json_data)} instead')
-        return {k: self._child.from_json(v) for k, v in json_data.items()}
-
-    def to_json(self, obj: dict):
-        if not isinstance(obj, dict):
-            raise TypeError(f'Expecting a dict, got {type_name(obj)} instead')
-        return {k: self._child.to_json(v) for k, v in obj.items()}
-
-    def set_default(self, default):
-        if default is None:
-            self.default = None
-        else:
-            self.default = dict(default)
-
-
-class ObjAdapter(Adapter):
-    def __init__(self, child: type):
-        super().__init__()
-        require_jsonified(child)
-        self._child = child
-
-    def from_json(self, json_data: Optional[dict]):
-        if json_data is None:
-            return None
-        if not isinstance(json_data, dict):
-            raise TypeError(f'Expecting a dict, got {type_name(json_data)} instead')
-        return from_json(self._child, json_data)
-
-    def to_json(self, obj: Optional[dict]):
-        if obj is None:
-            return None
-        if not isinstance(obj, self._child):
-            raise TypeError(f'Expecting a {self._child.__name__}, got {type_name(obj)} instead')
-        return to_json(obj)
-
-    def set_default(self, default):
-        if default is None:
-            self.default = None
-        else:
-            self.default = self._child(default)
-
-
-def _type_handler_list(args, parser):
-    if len(args) != 1:
-        raise TypeError('ListOf requires exactly one type argument')
-    sub_value = parser.parse_type_spec(args[0])
-    return ListOfAdapter(sub_value)
-
-
-def _type_handler_map(args, parser):
-    if len(args) != 1:
-        raise TypeError('MapOf requires exactly one type argument')
-    sub_value = parser.parse_type_spec(args[0])
-    return MapOfAdapter(sub_value)
-
-
 class TypeSpecParser:
     def __init__(self):
-        self._type_handlers = {
-            str: StringAdapter,
-            int: IntAdapter,
-            bool: BoolAdapter,
-            float: FloatAdapter,
-            datetime: TimestampAutoAdapter,
-            TypeSpec.MapOf: _type_handler_map,
-            TypeSpec.ListOf: _type_handler_list,
-            (TypeSpec.Timestamp, tuple()): TimestampAutoAdapter,
-            (TypeSpec.Timestamp, (int,)): TimestampIntAdapter,
-            (TypeSpec.Timestamp, (str,)): TimestampStrAdapter,
-            (TypeSpec.Timestamp, (float,)): TimestampFloatAdapter,
-        }
+        self._type_handlers = TypeSpecMap()
+        self._object_handler = None
 
-    def register(self, ts: Union[type, str], handler: Callable):
-        self._type_handlers[ts] = handler
+    def register(self, ts: Union[type, TypeSpec], handler: Callable, recurse: bool = False):
+        self._type_handlers.set(ts, (handler, recurse))
+
+    def register_object_handler(self, handler: Callable):
+        self._object_handler = handler
 
     def parse_type_spec(self, ts):
         if is_jsonified(ts):  # a jsonified sub-class
-            return ObjAdapter(ts)
+            if self._object_handler:
+                return self._object_handler(ts)
+            else:
+                raise TypeError(f'Object handler is not defined')
+
         if isinstance(ts, TypeSpec):  # a type-spec class with optional argumants
-            head, args = ts.head(), ts.tail()
-        elif isinstance(ts, type):  # simple type (no arguments)
-            head, args = ts, tuple()
+            arg = ts.tail()
+        elif isinstance(ts, type):
+            arg = None
         else:
             raise TypeError(f'Invalid type: {ts}')
 
         try:
-            type_handler = self._type_handlers[head]
+            type_handler, recurse = self._type_handlers.get(ts)
         except KeyError:
-            try:
-                type_handler = self._type_handlers[(head, args)]
-            except KeyError:
-                raise TypeError(f'Don\'t know how to handle type: {head}')
-        return type_handler(args, parser=self)
+            raise TypeError(f'Don\'t know how to handle type: {ts}')
+        if recurse:
+            arg = self.parse_type_spec(arg)
+        return type_handler(arg)
 
 
 class Field:
@@ -427,9 +182,6 @@ class Jsonier:
             omit_empty=field.omit_empty,
             name=field.name or attr_name,
         )
-
-
-jsonified = Jsonier()
 
 
 def from_json(cls, json_data: dict):
