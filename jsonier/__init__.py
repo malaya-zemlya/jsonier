@@ -1,14 +1,17 @@
+from jsonier.default_handlers import register_handlers
 from jsonier.marshalling import (
     Field,
-    from_json,
-    from_json_str,
-    jsonified,
-    to_json,
-    to_json_str
+    Jsonier,
+    load,
+    loads,
+    dump,
+    dumps
 )
+from jsonier.adapter.timestamp import Timestamp
+from jsonier.adapter.map_of import MapOf
+from jsonier.adapter.list_of import ListOf
 
-from jsonier.util.typeutil import (
-    ListOf,
-    MapOf,
-    Timestamp
-)
+
+jsonified = Jsonier()
+
+register_handlers(jsonified)
