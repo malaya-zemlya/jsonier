@@ -6,7 +6,6 @@ from datetime import (
 )
 
 from jsonier import *
-from jsonier import ListOf, MapOf, Timestamp
 
 
 @jsonified
@@ -86,7 +85,7 @@ class MarshallingTestCase(unittest.TestCase):
            }
         }
         """
-        p = Person.from_json_str(data)
+        p = Person.loads(data)
         self.assertEqual(p.name, 'John')
         self.assertEqual(p.last_name, 'Smith')
         self.assertEqual(p.age, 44)
@@ -102,7 +101,7 @@ class MarshallingTestCase(unittest.TestCase):
         self.assertEqual(p.contacts['work'].kind, 'fax')
         self.assertEqual(p.contacts['work'].data, '456-99-99')
 
-        q = p.to_json()
+        q = p.dump()
         self.assertEqual(q['name'], 'John')
         self.assertEqual(q['last-name'], 'Smith')
         self.assertEqual(q['age'], 44)
@@ -120,7 +119,7 @@ class MarshallingTestCase(unittest.TestCase):
                           city='New Bork City',
                           state='NB'
                       ))
-        j = obj.to_json()
+        j = obj.dump()
         self.assertEqual(j['first-name'], 'Adam')
         self.assertEqual(j['surname'], 'Smith')
         self.assertEqual(j['age'], 100)
@@ -157,7 +156,7 @@ class TestTimestamp(unittest.TestCase):
            "valid_since": 1040798340.0
         }
         """
-        bd = Dates.from_json_str(data)
+        bd = Dates.loads(data)
         self.assertEqual(bd.date, datetime(2020, 3, 12, 0, 0))
         self.assertEqual(bd.started, datetime(2002, 12, 25, 0, 0,
                                               tzinfo=timezone(timedelta(days=-1, seconds=64800))))

@@ -9,21 +9,26 @@ class ListOfAdapter(Adapter):
         super().__init__()
         self._child = child
 
-    def from_json(self, json_data: list):
+    def load(self, json_data: list):
         if not isinstance(json_data, list):
             raise TypeError(f'Expecting a list, got {type(json_data)} instead')
-        return [self._child.from_json(item) for item in json_data]
+        return [self._child.load(item) for item in json_data]
 
-    def to_json(self, obj: list):
+    def dump(self, obj: list):
         if not isinstance(obj, list):
             raise TypeError(f'Expecting a list, got {type_name(obj)} instead')
-        return [self._child.to_json(item) for item in obj]
+        return [self._child.dump(item) for item in obj]
 
     def set_default(self, default):
         if default is None:
             self.default = None
         else:
             self.default = list(default)
+
+    @staticmethod
+    def needs_param_parsing():
+        # In ListOf[T], T itself needs parsing.
+        return True
 
 
 ListOf = TypeSpec(TypeSpec.ListOf)

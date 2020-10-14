@@ -13,11 +13,17 @@ class Adapter:
     def set_default(self, default):
         self.default = default
 
-    def from_json(self, json_data):
-        raise NotImplementedError('from_json')
+    @staticmethod
+    def needs_param_parsing():
+        # return True if type parameters themselves need to be converted to adapters
+        # for example, in MapOf[T] or ListOf[T] generic types, T itself needs parsing.
+        return False
 
-    def to_json(self, json_data) -> JsonType:
-        raise NotImplementedError('to_json')
+    def load(self, json_data):
+        raise NotImplementedError('load')
+
+    def dump(self, json_data) -> JsonType:
+        raise NotImplementedError('dump')
 
     def zero(self):
         return self.default

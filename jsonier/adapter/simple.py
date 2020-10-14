@@ -2,10 +2,10 @@ from jsonier.adapter import Adapter
 
 
 class IntAdapter(Adapter):
-    def from_json(self, json_data) -> int:
+    def load(self, json_data) -> int:
         return int(json_data)
 
-    def to_json(self, json_data) -> int:
+    def dump(self, json_data) -> int:
         return int(json_data)
 
     def set_default(self, default):
@@ -16,10 +16,10 @@ class IntAdapter(Adapter):
 
 
 class FloatAdapter(Adapter):
-    def from_json(self, json_data) -> float:
+    def load(self, json_data) -> float:
         return float(json_data)
 
-    def to_json(self, json_data) -> float:
+    def dump(self, json_data) -> float:
         return float(json_data)
 
     def set_default(self, default):
@@ -30,10 +30,10 @@ class FloatAdapter(Adapter):
 
 
 class StringAdapter(Adapter):
-    def from_json(self, json_data) -> str:
+    def load(self, json_data) -> str:
         return str(json_data)
 
-    def to_json(self, json_data) -> str:
+    def dump(self, json_data) -> str:
         return str(json_data)
 
     def set_default(self, default):
@@ -44,10 +44,10 @@ class StringAdapter(Adapter):
 
 
 class BoolAdapter(Adapter):
-    def from_json(self, json_data) -> bool:
+    def load(self, json_data) -> bool:
         return bool(json_data)
 
-    def to_json(self, json_data) -> bool:
+    def dump(self, json_data) -> bool:
         return bool(json_data)
 
     def set_default(self, default):

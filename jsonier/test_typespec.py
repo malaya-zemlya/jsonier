@@ -53,11 +53,13 @@ class TestTypeSpecMap(unittest.TestCase):
         self.assertEqual(tm.get(int), 'int')
         self.assertEqual(tm.get(str), 'str')
         self.assertEqual(tm.get(ListOf[int]), 'List<int>')
-        self.assertEqual(tm.get(ListOf[str]), None)
         self.assertEqual(tm.get(MapOf[int]), 'Map<?>')
         self.assertEqual(tm.get(MapOf[bool]), 'Map<bool>')
         self.assertEqual(tm.get(MapOf[str]), 'Map<?>')
-        self.assertEqual(tm.get(Timestamp[str]), None)
+        with self.assertRaises(KeyError) as context:
+            tm.get(Timestamp[str])
+            tm.get(ListOf[str])
+
 
 
 if __name__ == '__main__':

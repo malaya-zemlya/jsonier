@@ -21,7 +21,7 @@ data = """
 {"first": "Bob", "last": "Ross", age: 50, "is_working": true}
 """
 jdata = json.loads(data)
-p = Person.from_json(jdata)
+p = Person.load(jdata)
 
 print(p.first) # Bob
 print(p.last) # Ross
@@ -33,14 +33,14 @@ You can also parse a string directly:
 data = """
 {"first": "Bob", "last": "Ross", age: 50, "is_working": true}
 """
-p = Person.from_json_str(data)
+p = Person.loads(data)
 ```
 
 To convert an object to JSON:
 
 ```python
 p = Person(first="Alice", last="Smith", age=30)
-print(p.to_json()) 
+print(p.dump()) 
 ```
 
 ```
@@ -48,7 +48,7 @@ print(p.to_json())
 ```
 
 ```python
-print(p.to_json_str(indent=2))
+print(p.dumps(indent=2))
 ```
 
 ```

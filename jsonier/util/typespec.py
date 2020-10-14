@@ -106,7 +106,7 @@ class TypeSpecMap:
         self._map = {}
         self._map_param = {}
 
-    def set(self, key: Union[type, 'TypeSpec'], value):
+    def set(self, key: Union[type, 'TypeSpec'], value: Any):
         if isinstance(key, type):
             self._map[key] = value
         elif isinstance(key, TypeSpec):
@@ -117,13 +117,17 @@ class TypeSpecMap:
         else:
             raise TypeError(f'Key must be a type or TypeSpec, got {type_name(key)}')
 
-    def get(self, key: Union[type, 'TypeSpec'], default=None):
+    def get(self, key: Union[type, 'TypeSpec']) -> Any:
+        """
+        Looks up a value in the map, given a type or typespec
+        :param key: typespec or type to look up
+        :raises KeyError: if the key doesn't match any parameters
+        :return:
+        """
         try:
             return self._map[key]
         except KeyError:
             if not isinstance(key, TypeSpec):
-                return default
-            try:
-                return self._map_param[key.head()]
-            except KeyError:
-                return default
+                raise
+            return self._map_param[key.head()]
+
